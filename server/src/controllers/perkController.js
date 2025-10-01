@@ -83,7 +83,7 @@ export async function updatePerk(req, res, next) {
     const { value, error } = updateSchema.validate(req.body, { stripUnknown: true });
     if (error) return res.status(400).json({ message: error.message });
 
-    // 🚫 Prevent unintended overwrite with "other"
+
     if (value.category === 'other' && !('category' in req.body)) {
       delete value.category;
     }

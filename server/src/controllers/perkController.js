@@ -69,9 +69,40 @@ export async function createPerk(req, res, next) {
 }
 // TODO
 // Update an existing perk by ID and validate only the fields that are being updated 
+// Update an existing perk by ID and validate only the fields that are being updated 
 export async function updatePerk(req, res, next) {
-  
+  try {
+    // allow partial updates (all fields optional here)
+    const updateSchema = perkSchema
+      .fork(Object.keys(perkSchema.describe().keys), field => field.optional())
+      .keys({
+        // remove default("other") from category during update
+        category: Joi.string().valid('food', 'tech', 'travel', 'fitness', 'other')
+      });
+
+    const { value, error } = updateSchema.validate(req.body, { stripUnknown: true });
+    if (error) return res.status(400).json({ message: error.message });
+
+    // 🚫 Prevent unintended overwrite with "other"
+    if (value.category === 'other' && !('category' in req.body)) {
+      delete value.category;
+    }
+
+    const doc = await Perk.findByIdAndUpdate(
+      req.params.id,
+      { $set: value },
+      { new: true, runValidators: true } // return updated doc & enforce schema validation
+    );
+
+    if (!doc) return res.status(404).json({ message: 'Perk not found' });
+    res.json({ perk: doc });
+  } catch (err) {
+    if (err.code === 11000) return res.status(409).json({ message: 'Duplicate perk for this merchant' });
+    next(err);
+  }
 }
+
+
 
 
 // Delete a perk by ID
